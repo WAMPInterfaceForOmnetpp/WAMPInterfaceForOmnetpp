@@ -1,10 +1,3 @@
-/*
- * ParameterMsg.h
- *
- *  Created on: 24.11.2017
- *      Author: cjh6384
- */
-
 #ifndef PARAMETERMSG_H_
 #define PARAMETERMSG_H_
 

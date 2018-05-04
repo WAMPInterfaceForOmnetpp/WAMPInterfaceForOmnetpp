@@ -1,0 +1,6 @@
+[submodule "autobahn-cpp"]
+	path = autobahn-cpp
+	url = https://github.com/crossbario/autobahn-cpp
+[submodule "msgpack-c"]
+	path = msgpack-c
+	url = https://github.com/msgpack/msgpack-c
