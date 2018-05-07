@@ -15,13 +15,11 @@
 #define __INET_LIVERECORDER_H
 
 #include <string>
-#include "inet/common/INETDefs.h"
 #include <thread>
 #include <stdio.h>
 #include "Settings.h"
 #include <autobahn/autobahn.hpp>
 #include <autobahn/wamp_publish_options.hpp>
-#include <boost/program_options.hpp>
 #include <sstream>
 
 namespace wampinterfaceforomnetpp {
@@ -31,7 +29,7 @@ namespace wampinterfaceforomnetpp {
  * @param topic     The router topic the event is published to. See the crossbar.io documentation for details about topics.
  */
 template<char const *topic>
-class INET_API LiveRecorder: public cResultRecorder /*public RPCallable<LiveRecorder>*/
+class LiveRecorder: public cResultRecorder /*public RPCallable<LiveRecorder>*/
 {
 protected:
     /**
