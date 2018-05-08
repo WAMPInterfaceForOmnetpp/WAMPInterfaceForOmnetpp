@@ -29,7 +29,7 @@ namespace wampinterfaceforomnetpp {
  * @param topic     The router topic the event is published to. See the crossbar.io documentation for details about topics.
  */
 template<char const *topic>
-class LiveRecorder: public cResultRecorder /*public RPCallable<LiveRecorder>*/
+class LiveRecorder: public omnetpp::cResultRecorder /*public RPCallable<LiveRecorder>*/
 {
 protected:
     /**
@@ -47,20 +47,20 @@ protected:
      * @param b         The value that was given (l, d, v, s, obj respectively)
      * @param details   An optional object that can be emitted to give details about the event (not used here).
      */
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, bool b,
-            cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, long l,
-            cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t,
-            unsigned long l, cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t, double d,
-            cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t,
-            const SimTime& v, cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t,
-            const char *s, cObject *details) override;
-    virtual void receiveSignal(cResultFilter *prev, simtime_t_cref t,
-            cObject *obj, cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t, bool b,
+            omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t, long l,
+            omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+            unsigned long l, omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t, double d,
+            omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+            const omnetpp::SimTime& v, omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+            const char *s, omnetpp::cObject *details) override;
+    virtual void receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+            omnetpp::cObject *obj, omnetpp::cObject *details) override;
 };
 
 template<const char* topic>
@@ -103,7 +103,7 @@ void LiveRecorder<topic>::collect(std::string value) {
                                 return;
                             }
 
-                            std::cerr << "transport connected" << std::endl;
+                            //std::cerr << "transport connected" << std::endl;
 
                             start_future = session->start().then([&](boost::future<void> started) {
                                         try {
@@ -114,25 +114,26 @@ void LiveRecorder<topic>::collect(std::string value) {
                                             return;
                                         }
 
-                                        std::cerr << "session started" << std::endl;
+                                        //std::cerr << "session started" << std::endl;
 
                                         join_future = session->join(settings->realm()).then([&](boost::future<uint64_t> joined) {
                                                     try {
-                                                        std::cerr << "joined realm: " << joined.get() << std::endl;
+                                                        joined.get(); // testing join
+                                                        //std::cerr << "joined realm: " << joined.get() << std::endl;
                                                     } catch (const std::exception& e) {
                                                         std::cerr << e.what() << std::endl;
                                                         io.stop();
                                                         return;
                                                     }
 
-                                                    std::tuple<std::string, std::string> arguments = std::make_tuple(simTime().str(), std::string(value));
+                                                    std::tuple<std::string, std::string> arguments = std::make_tuple(omnetpp::simTime().str(), std::string(value));
                                                     session->publish(topic, arguments);
 
-                                                    std::cerr << "event published" << std::endl;
+                                                    //std::cerr << "event published" << std::endl;
 
                                                     leave_future = session->leave().then([&](boost::future<std::string> reason) {
                                                                 try {
-                                                                    std::cerr << "left session (" << reason.get() << ")" << std::endl;
+                                                                    //std::cerr << "left session (" << reason.get() << ")" << std::endl;
                                                                 } catch (const std::exception& e) {
                                                                     std::cerr << "failed to leave session: " << e.what() << std::endl;
                                                                     io.stop();
@@ -140,7 +141,7 @@ void LiveRecorder<topic>::collect(std::string value) {
                                                                 }
 
                                                                 stop_future = session->stop().then([&](boost::future<void> stopped) {
-                                                                            std::cerr << "stopped session" << std::endl;
+                                                                            //std::cerr << "stopped session" << std::endl;
                                                                             io.stop();
                                                                             return;
                                                                         });
@@ -149,9 +150,9 @@ void LiveRecorder<topic>::collect(std::string value) {
                                     });
                         });
 
-        std::cerr << "starting io service" << std::endl;
+        //std::cerr << "starting io service" << std::endl;
         io.run();
-        std::cerr << "stopped io service" << std::endl;
+        //std::cerr << "stopped io service" << std::endl;
 
         transport->detach();
     } catch (const std::exception& e) {
@@ -160,50 +161,50 @@ void LiveRecorder<topic>::collect(std::string value) {
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        bool b, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        bool b, omnetpp::cObject* DETAILS_ARG) {
     collect(b ? "true" : "false");
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        long l, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        long l, omnetpp::cObject* DETAILS_ARG) {
     std::stringstream s;
     s << l;
     collect(s.str());
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        unsigned long l, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        unsigned long l, omnetpp::cObject* DETAILS_ARG) {
     std::stringstream s;
     s << l;
     collect(s.str());
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        double d, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        double d, omnetpp::cObject* DETAILS_ARG) {
     std::stringstream s;
     s << d;
     collect(s.str());
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        const SimTime& v, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        const omnetpp::SimTime& v, omnetpp::cObject* DETAILS_ARG) {
     collect(v.str());
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        const char *s, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        const char *s, omnetpp::cObject* DETAILS_ARG) {
     collect(s);
 }
 
 template<const char* topic>
-void LiveRecorder<topic>::receiveSignal(cResultFilter *prev, simtime_t_cref t,
-        cObject *obj, cObject* DETAILS_ARG) {
+void LiveRecorder<topic>::receiveSignal(omnetpp::cResultFilter *prev, omnetpp::simtime_t_cref t,
+        omnetpp::cObject *obj, omnetpp::cObject* DETAILS_ARG) {
     collect(obj->getFullPath());
 }
 

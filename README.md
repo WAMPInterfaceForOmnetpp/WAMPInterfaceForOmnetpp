@@ -4,26 +4,27 @@
 
 1. <a href="https://www.youtube.com/watch?v=WwkLIbBmU6Q">Install OMNeT++</a>
 
-2. Install the Boost libraries boost_system, boost_filesystem, boost_thread and boost_program_options.
+2. Install the Boost libraries `boost_system` and `boost_thread`.
 
     ```
     sudo apt-get install libboost-system-dev libboost-thread-dev
     ```
 
-3. Install and start the <a href="https://github.com/crossbario/crossbar">Crossbar.io WAMP router</a>. Make sure it is running before starting any simulation!
-
-    ```
-    sudo apt-get install python3-pip
-    pip3 install crossbar
-    crossbar start
-    ```
-
-4. Clone this project and the submodules
+3. Clone this project and the submodules
 
     ```
     git clone https://github.com/WAMPInterfaceForOmnetpp/WAMPInterfaceForOmnetpp.git
     cd WAMPInterfaceForOmnetpp
     git submodule update --init
+    cd ..
+    ```
+
+4. Install and start the <a href="https://github.com/crossbario/crossbar">Crossbar.io WAMP router</a>. Make sure it is running before starting any simulation!
+
+    ```
+    sudo apt-get install python3-pip
+    pip3 install crossbar
+    crossbar start --cbdir WAMPInterfaceForOmnetpp/crossbar
     ```
 
 ## Preparation of the Target Project
