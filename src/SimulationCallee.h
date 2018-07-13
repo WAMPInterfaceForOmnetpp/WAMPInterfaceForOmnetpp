@@ -19,10 +19,10 @@
 #include <omnetpp.h>
 #include <autobahn/autobahn.hpp>
 #include <autobahn/wamp_publish_options.hpp>
-#include <thread>
 #include "ParameterMsg.h"
 #include <boost/lockfree/queue.hpp>
-#include "Settings.h"
+
+#include "WAMPConnection.h"
 
 using namespace omnetpp;
 
@@ -54,24 +54,9 @@ private:
     std::string getParameterNamesPath;
 
     /**
-     * Thread that is used to register the function to the crossbar.io router
-     */
-    std::thread registeredFunctions;
-
-    /**
-     * io_service, that established a tcp connection to the router.
-     */
-    boost::asio::io_service io;
-
-    /**
      * The time between to setParameters Events, that are used to change parameters.
      */
     double interval;
-
-    /**
-     * Boolean variable that indicates whether the functions where registered once.
-     */
-    bool wasConnected = false;
 
     /**
      * Defines what happens if the modules parameters change.
@@ -136,12 +121,6 @@ private:
     static T getSingleParameter(cModule* mod, std::string paramName);
 
 public:
-
-    /**
-     * Boolean variable to decide whether the simulation shall stop.
-     */
-    static bool waitForStop;
-
     /**
      * String to determine where the callee module can be found.
      */
@@ -195,22 +174,16 @@ public:
     void finish();
 
     /**
-     * Registers the methods at the crossbar.io router
-     */
-    void registerMethods();
-
-    /**
-     * Loop to make sure it is tried to register the functions until it is done.
-     * Without it, only one trial is made and the program fails if the server is not yet established.
-     */
-    void tryToRegister();
-
-    /**
      * Function to handle all incoming messages.
      *
      * @param msg   The incoming message
      */
     void handleMessage(cMessage *msg);
+
+    /**
+     * Connection to the WAMP router
+     */
+    WAMPConnection wampConnection;
 };
 
 } /* namespace wampinterfaceforomnetpp */

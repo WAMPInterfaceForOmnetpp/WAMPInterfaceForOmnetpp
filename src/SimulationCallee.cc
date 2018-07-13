@@ -22,7 +22,6 @@ Define_Module(SimulationCallee);
 // Initialize class variables
 std::string SimulationCallee::calleeModulePath = "Tictoc.callee";
 
-bool SimulationCallee::waitForStop = false;
 boost::lockfree::queue<ParameterMsg*> SimulationCallee::ParametersToSet{100};
 
 void SimulationCallee::getSubmodules(autobahn::wamp_invocation invocation) {
@@ -249,13 +248,29 @@ void SimulationCallee::initialize(int stage) {
     cMessage* msg = new cMessage("interval");
     scheduleAt(simTime() + interval, msg);
 
-    registeredFunctions = std::thread(&SimulationCallee::tryToRegister, this);
-    std::cout << "started thread" << endl;
+    wampConnection.start([&](std::shared_ptr<autobahn::wamp_session> session){
+        std::vector<boost::future<autobahn::wamp_registration>> registrations;
+        registrations.push_back(session->provide(SimulationCallee::setParameterPath, &(setParameter)));
+        registrations.push_back(session->provide(SimulationCallee::getParameterPath, &(getParameter)));
+        registrations.push_back(session->provide(SimulationCallee::getAllSubmodulesPath, &(getSubmodules)));
+        registrations.push_back(session->provide(SimulationCallee::getParameterNamesPath, &(getModuleParameterNames)));
+
+        for(auto& registration : registrations) {
+            try {
+                registration.get();
+            } catch (const std::exception& e) {
+                std::cerr << e.what() << std::endl;
+                return false;
+            }
+        }
+
+        return true;
+    });
 }
 
 void SimulationCallee::finish() {
-    io.stop();
-    registeredFunctions.join();
+    wampConnection.stop();
+    wampConnection.join();
 }
 
 void SimulationCallee::handleMessage(cMessage *msg) {
@@ -386,13 +401,6 @@ void SimulationCallee::setSingleParameter(cModule* mod, std::string paramName,
     }
 }
 
-void SimulationCallee::tryToRegister() {
-    while (!wasConnected) {
-        registerMethods();
-        io.reset();
-    }
-}
-
 void SimulationCallee::setParameterByDataType(cModule* mod,
         std::string paramName, std::string value) {
     omnetpp::cPar::Type type = mod->par(paramName.c_str()).getType();
@@ -404,7 +412,7 @@ void SimulationCallee::setParameterByDataType(cModule* mod,
         mod->par(paramName.c_str()) = value.c_str();
         break;
     case 'L':
-        mod->par(paramName.c_str()).setLongValue(std::stol(value));
+        mod->par(paramName.c_str()).setIntValue(std::stol(value));
         break;
     case 'B':
         if (value == "true") {
@@ -419,142 +427,6 @@ void SimulationCallee::setParameterByDataType(cModule* mod,
     }
     std::cout << "new " << paramName << " in " << mod->getFullPath() << " is "
             << value << endl;
-}
-
-void SimulationCallee::registerMethods() {
-    try {
-        std::unique_ptr<Settings> settings(new Settings);
-        boost::asio::io_service::work work(io);
-        std::cout << "starting program .." << endl;
-        bool debug = settings->debug();
-
-        std::shared_ptr<autobahn::wamp_session> session = std::make_shared<
-                autobahn::wamp_session>(io, true);
-
-        boost::future<void> f1, f2, f3;
-        std::cout << "created futures" << endl;
-
-        auto transport = std::make_shared<autobahn::wamp_tcp_transport>(io,
-                settings->rawsocket_endpoint(), debug);
-
-        std::cout << "initialized variables" << endl;
-
-        transport->attach(
-                std::static_pointer_cast<autobahn::wamp_transport_handler>(
-                        session));
-        std::cout << "attached stuff to transport" << endl;
-
-        f1 =
-                transport->connect().then(
-                        [&](boost::future<void> connected) {
-                            try {
-                                std::cout <<"trying to connect transport"<< endl;
-                                connected.get();
-                                wasConnected = true;
-                            } catch (const std::exception& e) {
-                                std::cerr << e.what() << std::endl;
-                                io.stop();
-                                return;
-                            }
-                            std::cout <<"transport connected"<< endl;
-
-                            f2 = session->start().then(boost::launch::deferred, [&](boost::future<void> started) {
-                                        try {
-                                            started.get();
-                                        } catch (const std::exception& e) {
-                                            std::cerr << e.what() << std::endl;
-                                            io.stop();
-                                            return;
-                                        }
-                                        std::cout <<"session started"<< endl;
-
-                                        f3 = session->join(settings->realm()).then(boost::launch::deferred, [&](boost::future<uint64_t> joined) {
-                                                    try {
-                                                        int id = joined.get();
-                                                        std::cout << "id is" << id << endl;
-
-                                                    } catch (const std::exception& e) {
-                                                        std::cerr << e.what() << std::endl;
-                                                        io.stop();
-                                                        return;
-                                                    }
-                                                    std::cout <<"joined realm" << endl;
-
-                                                    auto f4 = session->provide(SimulationCallee::setParameterPath, &(setParameter)).then(
-                                                            boost::launch::deferred,
-                                                            [&](boost::future<autobahn::wamp_registration> registration) {
-                                                                try {
-                                                                    std::cout <<"registered procedure" << SimulationCallee::setParameterPath << endl;
-                                                                } catch (const std::exception& e) {
-                                                                    std::cerr << e.what() << std::endl;
-                                                                    io.stop();
-                                                                    return;
-                                                                }
-                                                            }
-                                                    );
-                                                    f4.get();
-                                                    std::cout << "Got f4" << endl;
-
-                                                    auto f5 = session->provide(SimulationCallee::getParameterPath, &(getParameter)).then(
-                                                            boost::launch::deferred,
-                                                            [&](boost::future<autobahn::wamp_registration> registration) {
-                                                                try {
-                                                                    std::cout <<"registered procedure" << SimulationCallee::getParameterPath << endl;
-                                                                } catch (const std::exception& e) {
-                                                                    std::cerr << e.what() << std::endl;
-                                                                    io.stop();
-                                                                    return;
-                                                                }
-                                                            }
-                                                    );
-                                                    f5.get();
-                                                    std::cout << "Got f5" << endl;
-
-                                                    auto f6 = session->provide(SimulationCallee::getAllSubmodulesPath, &(getSubmodules)).then(
-                                                            boost::launch::deferred,
-                                                            [&](boost::future<autobahn::wamp_registration> registration) {
-                                                                try {
-                                                                    std::cout <<"registered procedure" << SimulationCallee::getAllSubmodulesPath << endl;
-                                                                } catch (const std::exception& e) {
-                                                                    std::cerr << e.what() << std::endl;
-                                                                    io.stop();
-                                                                    return;
-                                                                }
-                                                            }
-                                                    );
-                                                    f6.get();
-                                                    std::cout << "Got f6" << endl;
-
-                                                    auto f7 = session->provide(SimulationCallee::getParameterNamesPath, &(getModuleParameterNames)).then(
-                                                            boost::launch::deferred,
-                                                            [&](boost::future<autobahn::wamp_registration> registration) {
-                                                                try {
-                                                                    std::cout <<"registered procedure" << SimulationCallee::getParameterNamesPath << endl;
-                                                                } catch (const std::exception& e) {
-                                                                    std::cerr << e.what() << std::endl;
-                                                                    io.stop();
-                                                                    return;
-                                                                }
-                                                            }
-                                                    );
-                                                    f7.get();
-                                                    std::cout << "Got f6" << endl;
-                                                });
-                                        f3.get();
-                                        std::cout << "Got f3 with"<< endl;
-
-                                    });
-                            f2.get();
-                            std::cout << "Got f2" << endl;
-                        });
-
-        std::cout << "starting io service .." << endl;
-        io.run();
-        std::cout << "stopped io service" << endl;
-
-    } catch (const std::exception& e) {
-        std::cout << e.what() << endl;
-    }
 }
 
 } /* namespace wampinterfaceforomnetpp */
